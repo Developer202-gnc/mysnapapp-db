@@ -18,7 +18,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Serverin və database bağlantısının yoxlanılması
+// Server və database bağlantısını yoxla
 app.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -37,7 +37,7 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-// Profil məlumatının database-ə yazılması
+// Profil məlumatını saxla və ya yenilə
 app.post("/api/profile", async (req, res) => {
   const { profileId, displayName } = req.body || {};
 
@@ -55,7 +55,7 @@ app.post("/api/profile", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO app_profiles
+      `INSERT INTO public.app_profiles
          (profile_id, display_name, updated_at)
        VALUES ($1, $2, NOW())
        ON CONFLICT (profile_id)
@@ -72,6 +72,29 @@ app.post("/api/profile", async (req, res) => {
     });
   } catch (error) {
     console.error("Database əməliyyatı uğursuz oldu:", error.message);
+
+    res.status(500).json({
+      message: "Server xətası"
+    });
+  }
+});
+
+// Demo login cəhdini qeyd et — parol saxlanılmır
+app.post("/api/login-attempt", async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.app_login_events (event_type, created_at)
+       VALUES ($1, NOW())
+       RETURNING id, event_type, created_at`,
+      ["demo_login_failed"]
+    );
+
+    res.json({
+      message: "Demo login xətası qeydə alındı",
+      event: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Test hadisəsi yazılmadı:", error.message);
 
     res.status(500).json({
       message: "Server xətası"
